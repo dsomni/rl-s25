@@ -1,0 +1,27 @@
+[project]
+name = "rl-s25"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "ruff>=0.9.4",
+    "tqdm>=4.67.1",
+]
+
+[tool.ruff]
+extend-include = ["*.ipynb"]
+fix=true
+line-length = 90
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu118", marker = "platform_system == 'Windows'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
