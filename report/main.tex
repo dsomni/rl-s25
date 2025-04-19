@@ -1,0 +1,105 @@
+\documentclass{article}
+
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{doi}
+
+\usepackage{amsmath}
+\usepackage{nicematrix}
+\usepackage{cleveref}
+\usepackage{listings}
+\usepackage{pgfplots}
+
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Initialize:}}
+
+
+\NiceMatrixOptions{cell-space-top-limit=5pt,cell-space-bottom-limit=5pt,columns-width=20pt}
+
+\crefname{lstlisting}{listing}{listings}
+\Crefname{lstlisting}{Listing}{Listings}
+
+
+% Listing options
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{python_style}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=python_style}
+
+\def\R{\mathbb{R}}
+
+
+\title{EBREG-RL: Example-Based Regular Expression Generator
+via Reinforcement Learning}
+
+%\date{September 9, 1985}	% Here you can change the date presented in the paper title
+\date{} 					% Or removing it
+
+\author{
+  \hspace{1mm}Dmitry Beresnev\\
+	AIDS-MS1, Innopolis University\\
+	\texttt{d.beresnev@innopolis.university}\\
+	\And{}
+  \hspace{1mm}Vsevolod Klyushev\\
+	AIDS-MS1, Innopolis University\\
+	\texttt{v.klyushev@innopolis.university}	\And{}
+  \hspace{1mm}Nikita Yaneev\\
+	AIDS-MS1, Innopolis University\\
+	\texttt{n.yaneev@innopolis.university}
+}
+
+% \renewcommand{\undertitle}{\textbf{Group 1} Report for HDDA F24 course}
+\renewcommand{\headeright}{}
+
+\pgfplotsset{compat=1.18}
+\begin{document}
+\maketitle
+
+
+\section{Introduction}
+
+\ldots
+
+\section{Citation examples}
+\cite{Zhong2018}~\cite{Bartoli2016}~\cite{Bartoli2018}~\cite{Tariq2024}
+
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+
+
+\end{document}
