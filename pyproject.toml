@@ -29,3 +29,7 @@ name = "pytorch-cu118"
 url = "https://download.pytorch.org/whl/cu118"
 explicit = true
 
+[tool.ruff.lint]
+extend-select = ["I"]
+ignore=["E402"]
+
