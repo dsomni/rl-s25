@@ -83,12 +83,25 @@ class RegexRPN:
 
     @cached_property
     def available_tokens(self) -> list[str]:
+        numbers: set[str] = {
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "0",
+        }
         return list(
             set().union(
-                self.operands_regex,
-                set(self.binary_regex.keys()),
-                set(self.unary_regex.keys()),
-                set(self.many_to_one_regex.keys()),
+                numbers,
+                # self.operands_regex,
+                # set(self.binary_regex.keys()),
+                # set(self.unary_regex.keys()),
+                # set(self.many_to_one_regex.keys()),
             )
         )
 
