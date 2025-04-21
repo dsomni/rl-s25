@@ -10,15 +10,15 @@ from rpn import RegexRPN
 
 @dataclass
 class EnvSettings:
-    invalid_regex_penalty: float = -1000
-    word_penalty: float = -100
-    length_penalty: float = -25
+    invalid_regex_penalty: float = -5
+    word_penalty: float = -5
+    length_penalty: float = -0.5
 
     f1_weight: float = 100
     precision_weight: float = 20
     recall_weight: float = 20
 
-    full_match_bonus: float = 1000
+    full_match_bonus: float = 100
 
     max_steps: int = 10
 
@@ -117,7 +117,7 @@ class Environment:
     def get_state(self) -> np.ndarray:
         if not self.settings.normalize_state:
             return self.state
-        return 1 - (self.state / self.empty_state_idx)
+        return self.state / self.empty_state_idx
 
     @cached_property
     def action_space(self) -> int:
