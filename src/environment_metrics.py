@@ -10,13 +10,15 @@ from rpn import RegexRPN
 
 @dataclass
 class EnvSettings:
-    invalid_regex_penalty: float = -5
-    word_penalty: float = -5
-    length_penalty: float = -0.5
+    invalid_regex_penalty: float = -100
+    empty_regex_penalty: float = -100
+    word_penalty: float = -1
+    length_penalty: float = -0.1
 
+    accuracy_weight: float = 100
     f1_weight: float = 100
-    precision_weight: float = 20
-    recall_weight: float = 20
+    precision_weight: float = 100
+    recall_weight: float = 100
 
     full_match_bonus: float = 100
 
@@ -49,7 +51,7 @@ class Environment:
         self.empty_state_idx = len(self._actions)
         self.finish_action_idx = self._action_to_idx[self._finish_action]
 
-        self.reset()
+        # self.reset()
 
     def reset(self) -> np.ndarray:
         self._step_idx = 0
@@ -64,6 +66,9 @@ class Environment:
             if regex_tokens[-1] == self._finish_action:  # remove finish action if needed
                 regex_tokens = regex_tokens[: len(regex_tokens) - 1]
             regex = self.rpn.to_infix(regex_tokens)
+
+            if len(regex) == 0:
+                return self.settings.empty_regex_penalty
 
             matches = [x.span() for x in re.finditer(regex, self.dataset_text)]
         except BaseException:
@@ -83,17 +88,21 @@ class Environment:
         tp = np.logical_and(pred_mask, target_mask).sum()
         fp = np.logical_and(pred_mask, reverse_target_mask).sum()
         fn = np.logical_and(reverse_pred_mask, target_mask).sum()
+        tn = np.logical_and(reverse_pred_mask, reverse_target_mask).sum()
 
+        accuracy = (tp + tn) / len(pred_mask)
         precision = tp / (tp + fp + 1e-9)
         recall = tp / (tp + fn + 1e-9)
         f1 = 2 * (precision * recall) / (precision + recall + 1e-9)
         full_match = np.bitwise_xor(pred_mask, target_mask).sum() == 0
 
         words_difference = abs(len(matches) - self.dataset_words)
+
         return float(
-            f1 * self.settings.f1_weight
-            + precision * self.settings.precision_weight
-            + recall * self.settings.recall_weight
+            (f1 - 1) * self.settings.f1_weight
+            + (accuracy - 1) * self.settings.accuracy_weight
+            # + precision * self.settings.precision_weight
+            # + recall * self.settings.recall_weight
             + full_match * self.settings.full_match_bonus
             + words_difference * self.settings.word_penalty
             + len(regex_tokens) * self.settings.length_penalty

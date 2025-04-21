@@ -97,11 +97,11 @@ class RegexRPN:
         }
         return list(
             set().union(
-                numbers,
-                # self.operands_regex,
-                # set(self.binary_regex.keys()),
-                # set(self.unary_regex.keys()),
-                # set(self.many_to_one_regex.keys()),
+                # numbers,
+                self.operands_regex,
+                set(self.binary_regex.keys()),
+                set(self.unary_regex.keys()),
+                set(self.many_to_one_regex.keys()),
             )
         )
 

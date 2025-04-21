@@ -37,7 +37,7 @@ class RegexDataset:
             indices = list(range(self._length))
             if self.shuffle:
                 np.random.seed(inner_seed)
-                np.random.shuffle(indices)
+                # np.random.shuffle(indices)
                 inner_seed += 1
             for idx in indices:
                 yield (
