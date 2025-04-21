@@ -72,14 +72,6 @@ class Environment:
 
         tokens_difference = sum(np.bitwise_xor(bit_mask, self.dataset_target))
         words_difference = abs(len(array) - self.dataset_words)
-        # print(regex)
-        # print(re.findall(regex, self.dataset_text))
-        # print(bit_mask)
-        # print("----")
-        # print(tokens_difference, self.settings.token_penalty)
-        # print(words_difference, self.settings.word_penalty)
-        # print(len(regex_tokens), self.settings.length_penalty)
-        # print()
         return float(
             tokens_difference * self.settings.token_penalty
             + words_difference * self.settings.word_penalty
