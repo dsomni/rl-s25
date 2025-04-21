@@ -12,13 +12,13 @@ from rpn import RegexRPN
 class EnvSettings:
     invalid_regex_penalty: float = -1000
     word_penalty: float = -100
-    length_penalty: float = -0.1
+    length_penalty: float = -25
 
     f1_weight: float = 100
     precision_weight: float = 20
     recall_weight: float = 20
 
-    full_match_bonus: float = 10000
+    full_match_bonus: float = 1000
 
     max_steps: int = 10
 
