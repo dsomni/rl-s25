@@ -16,7 +16,7 @@ class RegexRPN:
     unary_regex: dict[str, Callable[[str], str]] = {
         **{symbol: unary_lambda(symbol) for symbol in quantifiers},
         **{
-            symbol: unary_lambda(f"{symbol}?") for symbol in quantifiers
+            f"{symbol}?": unary_lambda(f"{symbol}?") for symbol in quantifiers
         },  # greedy versions
     }
     binary_regex: dict[str, Callable[[str, str], str]] = {
@@ -72,7 +72,7 @@ class RegexRPN:
                 continue
             if token in self.unary_regex:
                 operand = stack.pop()
-                stack.append(f"({token}{operand})")
+                stack.append(self.unary_regex[token](operand))
                 continue
             if token in self.operands_regex:
                 stack.append(token)
@@ -83,18 +83,6 @@ class RegexRPN:
 
     @cached_property
     def available_tokens(self) -> list[str]:
-        numbers: set[str] = {
-            "1",
-            "2",
-            "3",
-            "4",
-            "5",
-            "6",
-            "7",
-            "8",
-            "9",
-            "0",
-        }
         return list(
             set().union(
                 # numbers,

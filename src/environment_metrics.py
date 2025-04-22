@@ -28,7 +28,7 @@ class EnvSettings:
 
 
 class Environment:
-    _finish_action: str = "FIN"
+    finish_action: str = "FIN"
 
     def __init__(
         self,
@@ -41,15 +41,16 @@ class Environment:
         self._idx_to_action = {
             (i): action for i, action in enumerate(self.rpn.available_tokens)
         }
-        self._idx_to_action[len(self._idx_to_action)] = self._finish_action
+        self._idx_to_action[len(self._idx_to_action)] = self.finish_action
         self._action_to_idx = {v: k for k, v in self._idx_to_action.items()}
         self._actions = list(self._action_to_idx.keys())
 
         self.dataset_length = len(dataset)
+        self._raw_dataset = dataset
         self.dataset = dataset.create_iterator()
 
         self.empty_state_idx = len(self._actions)
-        self.finish_action_idx = self._action_to_idx[self._finish_action]
+        self.finish_action_idx = self._action_to_idx[self.finish_action]
 
         # self.reset()
 
@@ -59,17 +60,8 @@ class Environment:
         self.state = np.array([self.empty_state_idx] * self.settings.max_steps)
         return self.get_state()
 
-    def _get_reward(self) -> float:
-        regex_actions = self.state[: self._step_idx]
+    def _get_reward_regex(self, regex: str, regex_tokens_len: int) -> float:
         try:
-            regex_tokens = [self._idx_to_action[x] for x in regex_actions]
-            if regex_tokens[-1] == self._finish_action:  # remove finish action if needed
-                regex_tokens = regex_tokens[: len(regex_tokens) - 1]
-            regex = self.rpn.to_infix(regex_tokens)
-
-            if len(regex) == 0:
-                return self.settings.empty_regex_penalty
-
             matches = [x.span() for x in re.finditer(regex, self.dataset_text)]
         except BaseException:
             return self.settings.invalid_regex_penalty
@@ -105,8 +97,23 @@ class Environment:
             # + recall * self.settings.recall_weight
             + full_match * self.settings.full_match_bonus
             + words_difference * self.settings.word_penalty
-            + len(regex_tokens) * self.settings.length_penalty
+            + regex_tokens_len * self.settings.length_penalty
         )
+
+    def _get_reward(self) -> float:
+        regex_actions = self.state[: self._step_idx]
+        try:
+            regex_tokens = [self._idx_to_action[x] for x in regex_actions]
+            if regex_tokens[-1] == self.finish_action:  # remove finish action if needed
+                regex_tokens = regex_tokens[: len(regex_tokens) - 1]
+            regex = self.rpn.to_infix(regex_tokens)
+
+            if len(regex) == 0:
+                return self.settings.empty_regex_penalty
+
+            return self._get_reward_regex(regex, len(regex_tokens))
+        except BaseException:
+            return self.settings.invalid_regex_penalty
 
     def step(self, action: int) -> tuple[np.ndarray, float, bool]:
         self.state[self._step_idx] = action

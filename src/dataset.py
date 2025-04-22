@@ -1,12 +1,21 @@
 import re
 
 import numpy as np
+import orjson
 
 
 class RegexDataset:
+    @staticmethod
+    def from_disk(path: str) -> tuple[list[str], str]:
+        with open(path, "r", encoding="utf-8") as f:
+            data = orjson.loads(f.read())
+
+        return data["examples"], data["regex"]
+
     def __init__(
         self, texts: list[str], true_regex: str, shuffle: bool = True, seed: int = 420
     ) -> None:
+        self._true_regex = true_regex
         self._seed = seed
         self.shuffle = shuffle
         self._texts = texts
@@ -17,7 +26,7 @@ class RegexDataset:
             target = [0 for _ in range(len(text))]
             words = 0
 
-            for match in re.finditer(true_regex, text):
+            for match in re.finditer(self._true_regex, text):
                 words += 1
                 start, end = match.span()
                 for i in range(start, end):

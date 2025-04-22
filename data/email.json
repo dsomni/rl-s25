@@ -501,5 +501,5 @@
     "|qTmc(S u?&tB iib ewJyn@JLYi.lDRP",
     " AHzPDC@XEJ.ri"
   ],
-  "regex": "\\w+@\\w+\\.\\w"
+  "regex": "\\w+@\\w+\\.\\w+"
 }
