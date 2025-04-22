@@ -240,47 +240,52 @@ The training procedure is the following:
 
 
 \subsection{Reinforce}
-\begin{algorithm}[H]
-\caption{REINFORCE}\label{algo:reinforce}
+\begin{algorithm}
+\caption{Policy Gradient Training Loop}\label{algo:train_loop}
 \begin{algorithmic}[0]
-  \Require{policy network $\pi_\theta$, optimizer $opt$, agent $agent$, trajectory buffer $buffer$, epochs $E$, episodes per epoch $N$, mean baseline flag $b$, entropy coefficient $\beta$}
-  \State{$arr\_rewards \gets []$}
-  \For{$i = 1$ to $E$}
-    \State{$buffer.clean()$}
-    \State{$done\_episodes \gets 0$}
-    \State{$epoch\_rewards \gets []$}
-    \While{$done\_episodes < N$}
-      \State{$state \gets env.reset()$}
-      \State{$episode\_states, episode\_rewards, episode\_actions \gets [], [], []$}
-      \Repeat
-        \State{$logits \gets \pi_\theta(state)$}
-        \State{$t \gets 1 / \sqrt{i}$}
-        \State{$action \gets agent.choose\_action(logits / t)$}
-        \State{$next\_state, reward, done \gets env.step(action)$}
-        \State{$episode\_states.append(state)$}
-        \State{$episode\_rewards.append(reward)$}
-        \State{$episode\_actions.append(action)$}
-        \State{$state \gets next\_state$}
-      \Until{$done$}
-      \State{$buffer.store(episode\_states, episode\_rewards, episode\_actions)$}
-      \State{$epoch\_rewards.append(\sum episode\_rewards)$}
-      \State{$arr\_rewards.append(\sum episode\_rewards)$}
-      \State{$done\_episodes \gets done\_episodes + 1$}
+  \Require{$\text{pgn\_net}:$ nn.Module, $\text{pgn\_optimizer}:$ optim.Optimizer, $\text{agent}:$ Agent, $\text{buffer}:$ TrajectoryBuffer, \\ 
+           \hspace{1em}$\text{epochs}, \text{episodes}:$ int, $\text{mean\_baseline}:$ bool, $\text{entropy\_beta}:$ float}
+  \State{$\text{arr\_rewards} \gets []$}
+  \State{$\text{pgn\_net.train()}$}
+  \For{$i \gets 1$ \textbf{to} $\text{epochs}$}
+    \State{$\text{buffer.clean()}$}
+    \State{$\text{state} \gets \text{env.reset()}$}
+    \State{$\text{done\_episodes} \gets 0$}
+    \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf},\,\text{reg\_exp},\,\text{train\_rewards} \gets [],[],[],[]$}
+    \While{$\text{done\_episodes} < \text{episodes}$}
+      \State{$\text{state\_tensor} \gets \text{Tensor}(\text{state})$}
+      \State{$\text{action\_logits} \gets \text{pgn\_net}(\text{state\_tensor})$}
+      \State{$t \gets 1 / \sqrt{i}$}
+      \State{$\text{action} \gets \text{agent.choose\_action}(\text{action\_logits} / t)$}
+      \State{$\text{next\_state},\,\text{reward},\,\text{done} \gets \text{env.step}(\text{action})$}
+      \State{$\text{reg\_exp.append}(\text{env.idx\_to\_action}(\text{action}))$}
+      \State{$\text{ep\_states\_buf.append}(\text{state});\quad \text{ep\_rew\_act\_buf.append}([\text{reward},\text{action}])$}
+      \State{$\text{state} \gets \text{next\_state}$}
+      \If{$\text{done}$}
+        \State{$\text{buffer.store}(\text{array}(\text{ep\_states\_buf}),\,\text{array}(\text{ep\_rew\_act\_buf}))$}
+        \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf} \gets [],[]$}
+        \State{$\text{train\_rewards.append}(\text{reward});\quad \text{arr\_rewards.append}(\text{train\_rewards})$}
+        \State{$\text{done\_episodes} \gets \text{done\_episodes} + 1$}
+      \EndIf
     \EndWhile
-    \ForAll{batches $(S, R, A)$ in $buffer.get\_batches(b)$}
-      \State{$opt.zero\_grad()$}
-      \State{$logits\_batch \gets \pi_\theta(S)$}
-      \State{$\log\_probs \gets \mathrm{LogSoftmax}(logits\_batch)$}
-      \State{$\log\_probs\_actions \gets R \;\cdot\; \log\_probs[\mathrm{range}(|S|), A]$}
-      \State{$loss\_policy \gets -\,\mathrm{mean}(\log\_probs\_actions)$}
-      \State{$probs \gets \mathrm{Softmax}(logits\_batch)$}
-      \State{$entropy \gets -\,\mathrm{mean}\bigl(\sum(probs \,\cdot\, \log\_probs,\;\mathrm{dim}=1)\bigr)$}
-      \State{$loss \gets loss\_policy \;-\; \beta \cdot entropy$}
-      \State{$loss.backward()$}
-      \State{$opt.step()$}
+    \State{$\text{losses} \gets []$}
+    \ForAll{batch in $\text{buffer.get\_batches}(\text{mean\_baseline})$}
+      \State{$\text{pgn\_optimizer.zero\_grad}()$}
+      \State{$\text{state\_batch},\,\text{action\_batch},\,\text{reward\_batch} \gets \text{batch}$}
+      \State{$\text{logits\_v} \gets \text{pgn\_net}(\text{state\_batch})$}
+      \State{$\text{log\_prob\_v} \gets \text{LogSoftmax}(\text{logits\_v})$}
+      \State{$\text{log\_prob\_actions\_v} \gets \text{reward\_batch} \;\times\; \text{log\_prob\_v}[\dots,\;\text{action\_batch}]$}
+      \State{$\text{loss\_policy\_v} \gets -\,\mathrm{mean}(\text{log\_prob\_actions\_v})$}
+      \State{$\text{prob\_v} \gets \text{Softmax}(\text{logits\_v})$}
+      \State{$\text{entropy\_v} \gets -\,\mathrm{mean}\bigl(\sum(\text{prob\_v}\,\cdot\,\text{log\_prob\_v})\bigr)$}
+      \State{$\text{entropy\_loss\_v} \gets \text{entropy\_beta}\,\times\,\text{entropy\_v}$}
+      \State{$\text{loss\_v} \gets \text{loss\_policy\_v} - \text{entropy\_loss\_v}$}
+      \State{$\text{loss\_v.backward}();\quad \text{pgn\_optimizer.step}()$}
+      \State{$\text{losses.append}(\text{loss\_v})$}
     \EndFor
-    \State{\textbf{print} Epoch $i$, mean reward over epoch}
+    \State{\textbf{print} epoch statistics}
   \EndFor
+  \State\Return{$\text{pgn\_net}$}
 \end{algorithmic}
 \end{algorithm}
 
