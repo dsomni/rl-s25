@@ -8,6 +8,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "matplotlib>=3.10.1",
     "numpy>=2.2.4",
+    "orjson>=3.10.16",
     "pre-commit>=4.2.0",
     "ruff>=0.9.4",
     "scikit-learn>=1.6.1",
