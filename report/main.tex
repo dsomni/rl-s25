@@ -238,8 +238,51 @@ The training procedure is the following:
 \end{algorithmic}
 \end{algorithm}
 
+
 \subsection{Reinforce}
-\dots
+\begin{algorithm}[H]
+\caption{REINFORCE}\label{algo:reinforce}
+\begin{algorithmic}[0]
+  \Require{policy network $\pi_\theta$, optimizer $opt$, agent $agent$, trajectory buffer $buffer$, epochs $E$, episodes per epoch $N$, mean baseline flag $b$, entropy coefficient $\beta$}
+  \State{$arr\_rewards \gets []$}
+  \For{$i = 1$ to $E$}
+    \State{$buffer.clean()$}
+    \State{$done\_episodes \gets 0$}
+    \State{$epoch\_rewards \gets []$}
+    \While{$done\_episodes < N$}
+      \State{$state \gets env.reset()$}
+      \State{$episode\_states, episode\_rewards, episode\_actions \gets [], [], []$}
+      \Repeat
+        \State{$logits \gets \pi_\theta(state)$}
+        \State{$t \gets 1 / \sqrt{i}$}
+        \State{$action \gets agent.choose\_action(logits / t)$}
+        \State{$next\_state, reward, done \gets env.step(action)$}
+        \State{$episode\_states.append(state)$}
+        \State{$episode\_rewards.append(reward)$}
+        \State{$episode\_actions.append(action)$}
+        \State{$state \gets next\_state$}
+      \Until{$done$}
+      \State{$buffer.store(episode\_states, episode\_rewards, episode\_actions)$}
+      \State{$epoch\_rewards.append(\sum episode\_rewards)$}
+      \State{$arr\_rewards.append(\sum episode\_rewards)$}
+      \State{$done\_episodes \gets done\_episodes + 1$}
+    \EndWhile
+    \ForAll{batches $(S, R, A)$ in $buffer.get\_batches(b)$}
+      \State{$opt.zero\_grad()$}
+      \State{$logits\_batch \gets \pi_\theta(S)$}
+      \State{$\log\_probs \gets \mathrm{LogSoftmax}(logits\_batch)$}
+      \State{$\log\_probs\_actions \gets R \;\cdot\; \log\_probs[\mathrm{range}(|S|), A]$}
+      \State{$loss\_policy \gets -\,\mathrm{mean}(\log\_probs\_actions)$}
+      \State{$probs \gets \mathrm{Softmax}(logits\_batch)$}
+      \State{$entropy \gets -\,\mathrm{mean}\bigl(\sum(probs \,\cdot\, \log\_probs,\;\mathrm{dim}=1)\bigr)$}
+      \State{$loss \gets loss\_policy \;-\; \beta \cdot entropy$}
+      \State{$loss.backward()$}
+      \State{$opt.step()$}
+    \EndFor
+    \State{\textbf{print} Epoch $i$, mean reward over epoch}
+  \EndFor
+\end{algorithmic}
+\end{algorithm}
 
 \section{Experiments}
 We decided to check our models on 3 different experiments:
