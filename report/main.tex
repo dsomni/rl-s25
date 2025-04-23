@@ -57,6 +57,9 @@
     tabsize=2
 }
 \lstset{style=python_style}
+\NewDocumentCommand{\codeword}{v}{%
+\texttt{\textcolor{blue}{#1}}%
+}
 
 \def\R{\mathbb{R}}
 
@@ -80,7 +83,7 @@ via Reinforcement Learning}
 	\texttt{n.yaneev@innopolis.university}
 }
 
-% \renewcommand{\undertitle}{\textbf{Group 1} Report for HDDA F24 course}
+\renewcommand{\undertitle}{Project report for RL\&IA course S25 Innopolis University}
 \renewcommand{\headeright}{}
 
 \pgfplotsset{compat=1.18}
@@ -90,240 +93,515 @@ via Reinforcement Learning}
 
 \section{Introduction}
 
-Nowadays big-tech companies increasingly prefer data-driven development, which requires careful extraction of 
-information, including from unstructured or almost unstructured text. This task is considered as extremely tough, 
-but in many real-world scenarios even unstructured text information have underlying syntactic pattern that can be 
+Nowadays big-tech companies increasingly prefer data-driven development, which requires careful extraction of
+information, including from unstructured or almost unstructured text. This task is considered as extremely tough,
+but in many real-world scenarios even unstructured text information have underlying syntactic pattern that can be
 characterized by a regular expressions, due to their adaptability and expressiveness.
-However, even for experienced programmers, writing RegEx by hand is a boring, time-consuming, and error-prone 
-process. Moreover, despite widespread use of regular expression, there are not so many researches and literature on 
-the automatic RegEx generation. That is why we chose an example-based RegEx generation as a topic of the project of 
+However, even for experienced programmers, writing RegEx by hand is a boring, time-consuming, and error-prone
+process. Moreover, despite widespread use of regular expression, there are not so many researches and literature on
+the automatic RegEx generation. That is why we chose an example-based RegEx generation as a topic of the project of
 this course.
 
 \begin{figure}[H]
   \centering
-    \includegraphics[width=0.5\textwidth]{./pictures/approach1.png}
-    \caption[NL2RE pipeline]{NL2RE pipeline}\label{fig:NL2RE}
+  \includegraphics[width=0.5\textwidth]{./pictures/approach1.png}
+  \caption[NL2RE pipeline]{NL2RE pipeline}\label{fig:NL2RE}
 \end{figure}
 
-One approach \cite{Zhong2018, Tariq2024} uses LLMs to convert natural language prompts into regular expressions (NL2RE). 
-This method offers flexibility, allowing the model to generate a wide variety of RegExes. 
-However, it requires significant computational resources and careful architecture design. 
-This method is not ideal for generating RegExes that are specifically tailored to a particular domain or task. 
+One approach~\cite{Zhong2018, Tariq2024} uses LLMs to convert natural language prompts into regular expressions (NL2RE).
+This method offers flexibility, allowing the model to generate a wide variety of RegExes.
+However, it requires significant computational resources and careful architecture design.
+This method is not ideal for generating RegExes that are specifically tailored to a particular domain or task.
 It is also challenging to ensure that the generated RegExes are accurate and efficient.
 
-Another approach \cite{Bartoli2016, Bartoli2018} uses genetic programming (GP) to generate regular expression for specific tasks based on labeled 
-data. The GP algorithm searches for the best-performing regular expression by iteratively evolving a population of 
-candidate solutions. This method requires careful design of hyperparameters, such as the size of the population and 
+Another approach~\cite{Bartoli2016, Bartoli2018} uses genetic programming (GP) to generate regular expression for specific tasks based on labeled
+data. The GP algorithm searches for the best-performing regular expression by iteratively evolving a population of
+candidate solutions. This method requires careful design of hyper-parameters, such as the size of the population and
 the mutation rate, as well as a well-defined fitness function to evaluate the performance of each regular expression.
 
 \section{Problem formulation}
 
-We propose a new approach that leverages reinforcement learning (RL) to generate regular expression. 
-This method formulates the regular expression generation process as a Markov decision process (MDP) 
+We propose a new approach that leverages reinforcement learning (RL) to generate regular expression.
+This method formulates the regular expression generation process as a Markov decision process (MDP)
 with fully-observable deterministic episodic environment.
 
-Each action corresponds to a regular expression syntax unit, state space would be a set of all possible sequences 
-of syntax units of fixed length. For reward function various information retrieval metrics can be used as indicators 
+Each action corresponds to a regular expression syntax unit, state space would be a set of all possible sequences
+of syntax units of fixed length. For reward function various information retrieval metrics can be used as indicators
 of how good the generated regular expression is.
 
-\subsection{Reverse Poland Notation}
-Due to the fact that regular expressions have operations with different precedence and number of arguments, 
+\subsection{Reverse Polish Notation}
+Due to the fact that regular expressions have operations with different precedence and number of arguments,
 we decided to use the Reverse Polish Notation (RPN) for the construction of regular expressions.
 
-In our RPN implementation we have 101 different actions:
+In our RPN implementation we have 104 different actions:
 \begin{itemize}
-  \item 93 tokens (letters, difits, quantifiers, finish token, etc.),
-  \item 2 binary operations ("concat" and "|"),
-  \item 3 unary operations ("*", "+", "?"),
-  \item 3 many to one operations ("[]", "\^[]", concat\_all").
+  \item 93 tokens (letters, digits, quantifiers, finish token, etc.),
+  \item 2 binary operations (\codeword{concat} and \codeword{|}),
+  \item 6 unary operations (\codeword{*}, \codeword{+}, \codeword{?}, \codeword{*?}, \codeword{+?}, \codeword{??}),
+  \item 3 many to one operations (\codeword{[]}, \codeword{\^[]}, \codeword{concat_all}).
 \end{itemize}
 
+\subsection{Dataset}
+
+For the stated problem our dataset would have the following form:
+\begin{itemize}
+  \item Example text
+  \item Nonempty list of indexes of symbols from example text, which we want to retrieve with achieved regexp
+\end{itemize}
+
+\section{Methodology}
+This section explains the basic parts of Reinforcement Learning.
 \subsection{Action Space}
 Action space for our RL agent consists of all possible actions for RPN.
 
 \subsection{State Space}
-The state space consists of $n$ placeholders, where each placeholder can either contain an action 
+The state space consists of $n$ placeholders, where each placeholder can either contain an action
 from the action space or remain empty (denoted by a special empty token).
-To derive the current regular expression (state), we iterate over the non-empty tokens and apply the corresponding 
+To derive the current regular expression (state), we iterate over the non-empty tokens and apply the corresponding
 actions using Reverse Polish Notation (RPN).
 
-\subsection{Dataset}
-\dots
-
 \subsection{Reward}
-Reward function is a major part of RL pipeline. We come up with 2 approaches for reward calculation. 
+Reward function is a major part of RL pipeline. We come up with 2 approaches for reward calculation.
 Note, that we will calculate such rewards only by the end of the episode. Before that we will give 0 as reward.
 Let's start with common parts.
 
 First, we start with a text from which we want to extract specific information. To do this, we need to:
 Identify the indices of the characters we want to retrieve.
-Construct a "target bit mask" of length $n$ (where $n$ is the text length), where:
+Construct a `target bit mask' of length $n$ (where $n$ is the text length), where:
 \begin{itemize}
   \item 1 marks positions to be included.
   \item 0 marks positions to be excluded.
 \end{itemize}
 
-Then, we get the current regular expression from RPN and apply it to the text, retriving indices of founnd symbold.
-After that, we construct the "current bit mask" in the same way, as "target bit mask"
+Then, we get the current regular expression from RPN and apply it to the text, retrieving indices of found symbol.
+After that, we construct the `current bit mask' in the same way as `target bit mask'
 
-\subsubsection{Simple approach}
+\subsubsection{Xor approach}
 First idea of the reward is the following:
-$$
-\alpha \cdot \sum(A \oplus B) + \beta \cdot |C - D| + \gamma \cdot E
-$$
+
+\begin{equation}
+  R = \alpha \cdot \sum(A \oplus B) + \beta \cdot |C - D| + \gamma \cdot E
+\end{equation}
 where:
 \begin{itemize}
-  \item A - "target bitmask"
-  \item B - "current bitmask"
-  \item C - number of target words
-  \item D - number of words, retrieved with regexp
-  \item E - token length of regexp
+  \item A --- `target bit-mask'
+  \item B --- `current bit-mask'
+  \item C --- number of target words
+  \item D --- number of words, retrieved with regexp
+  \item E --- token length of regexp
 \end{itemize}
 
-\subsubsection{Complex approach}
-Second idea of the reward is based on the fact, that we can calculate accuracy, precision, recall and F1 on bitmasks.
+\subsubsection{Metrics approach}
+Second idea of the reward is based on the fact, that we can calculate accuracy and F1 on bit-masks.
 Thus reward function would be the following:
-$$
-\alpha \cdot F1 + \beta \cdot P + \gamma \cdot R + \delta \cdot |C - D| + \omega \cdot E\
-$$
+\begin{equation}
+  R =\alpha \cdot F1 + \beta \cdot A + \delta \cdot |C - D| + \omega \cdot E\
+\end{equation}
+
 where:
 \begin{itemize}
-  \item F1 - F1 score on bit masks
-  \item P - Precision on bit masks
-  \item R - Recall on bit masks
-  \item C - number of target words
-  \item D - number of words, retrieved with regexp
-  \item E - token length of regexp
+  \item F1 --- F1 score on bit masks
+  \item A --- Accuracy on bit masks
+  \item C --- number of target words
+  \item D --- number of words, retrieved with regexp
+  \item E --- token length of regexp
 \end{itemize}
 
 \section{RL approaches}
-We decided to check 2 RL approaches - Actor-Critic and Reinforce.
+We decided to check 3 RL approaches: Advantage Actor-Critic (A2C), REINFORCE and Deep Q-Network (DQN).
 
-\subsection{Actor-Critic}
-For Actor-Critic approach we define Neural Network (NN) with two heads: one for policy and one for state value.
-The training procedure is the following:
-\begin{algorithm}[H]
+\subsection{REINFORCE}
+REINFORCE is a version of Monte-Carlo Policy Gradient algorithm proposed by
+Williams in~\cite{Williams1992}. It adopts an explicit stochastic policy, and
+uses the episode samples to update the policy parameters. To construct the
+sample space, the full episode should be played, which correlates with the
+proposed solution architecture.
 
-\caption{Actor-Critic}\label{algo:a2c}
-\begin{algorithmic}[0]
-  \Require{empty state of size $n$, environment $env$}
+\paragraph{Policy}
+In the case of using REINFORCE, the stochastic policy of selection action $a_t$
+given state $s_t$ obtained from policy:
+\begin{align}
+  \label{eq:rnf_policy}
+  \pi_{\theta}(a_t | s_t) =
+  \operatorname{softmax}(\text{MLP}(\theta)),
+\end{align}
+where $\theta$ denotes the parameters of policy neural network.
 
-  \State{$done \gets False $}
-  \State{$actions \gets [] $}
-  \State{$states \gets [] $}
-  \State{$rewards \gets [] $}
-  \State{$state \gets env.reset() $}
-  \While{$!done$}
-  \State{$logits \gets net(state)[0]$}
-  \State{$action \gets choose\_action(logits)$}
-  \State{$new\_state, reward, done \gets env.step(action)$}
-  \State{$actions, states, rewards \gets action, state, reward$}
-  \EndWhile{}
-  \State{$cumulative\_rewards \gets accomulate(rewards)$}
-  \State{$logits, values \gets net(states)$}
-  \State{$loss\_val \gets MSE(values, cumulative\_rewards)$}
-  \State{$log\_probs \gets LogSoftmax(logits)$}
-  \State{$adv \gets cumulative\_rewards - values$}
-  \State{$log\_probs\_actions \gets adv \cdot log\_probs$}
-  \State{$loss\_policy \gets -mean(log\_probs\_actions)$}
-  \State{$probs \gets Softmax(logits)$}
-  \State{$entropy \gets mean(sum((probs \cdot log\_probs),dim=1))$}
-  \State{$entropy_loss \gets \beta \cdot entropy$}
-  \State{$loss\_policy.backward()$}
-  \State{$loss\_val \gets entropy_loss + loss\_val$}
-  \State{$loss\_val.backward()$}
-  
-  \State{\Return{$net$}}
+During training stage, the corresponding probabilities from
+\cref{eq:rnf_policy} are used for action sampling. During evaluation and
+testing stages, the optimal action $a_t^\ast$ is chosen in the following way:
+\begin{align}
+  \label{eq:rnf_optimal}
+  a_t^\ast = \operatorname{argmax}_{a}\pi_{\theta}(a | s_t)
+\end{align}
 
-\end{algorithmic}
-\end{algorithm}
+\paragraph{Objective function}
+The expected reward definition is manly based on one given in~\cite{Zhang2018}.
+
+The main goal of policy optimization is maximizing the expected reward, which
+is defined as
+\begin{multline}\label{eq:rnf_expreward}
+  J(\theta) = \mathbb{E}_{(s_t, a_t) \sim P_{\theta}(s_t, a_t)} r(s_1 a_1 \dots s_N
+  a_N) = \sum_{s_1 a_1 \dots s_N a_N} P_{\theta}(s_1 a_1 \dots s_N a_N)R_N \\ =
+  \sum_{s_1 a_1 \dots s_N a_N} p(s_1) \prod_t \pi_{\theta}(a_t | s_t)p(s_{t+1}|
+  s_t, a_t)R_N.
+\end{multline}
+Here for the simplicity it is assumed,
+that $N$ --- total length of both target and candidate texts.
+By the solution architecture design, the state $s_{t+1}$ is completely
+determined by state $s_t$ and action $a_t$, the probabilities
+$p(s_1)$ and $p(s_{t+1}|s_t, a_t)$ are both equal to 1. Therefore,
+the \cref{eq:rnf_expreward} can be simplified to
+\begin{align}
+  J(\theta) = \sum_{s_1 a_1 \dots s_N a_N}\prod_t \pi_{\theta}(a_t | s_t)R_N.
+\end{align}
+
+The likelihood ratios are then used to compute the policy gradient:
+\begin{align}
+  \label{eq:rnf_pg}
+  \nabla_{\theta} J(\theta) = R_N \sum_{t=1}^N \nabla_{\theta} \log \pi_{\theta}(a_t | s_t).
+\end{align}
+
+In addition to just policy gradient, the entropy $H$ of the policy is included
+to the objective function. Entropy is defined as
+\begin{align}
+  \label{eq:entropy}
+  H(\theta) = - \sum_a \pi_{\theta}(a | s) \log \pi_{\theta}(a | s).
+\end{align}
+The value of $H$ is always non-negative, and has a single maximum
+when all the actions have the same probability to be taken, i.e.\ when
+policy is uniform. Entropy reaches minimum, when
+$\pi_{\theta}(a_i | s) = 1$ for some action $a_i$ and
+$\pi_{\theta}(a_j | s) = 0$ for all $j \neq i$. Therefore,
+subtracting the entropy from the objective function pushes the policy to be uniform,
+what means punishing the agent to be too sure about what action to take.
+
+Finally, the objective function for the policy update combines
+\cref{eq:rnf_pg,eq:entropy}, and is defined as
+\begin{align}
+  \label{eq:rnf_objective}
+  Z(\theta) = \nabla_\theta J(\theta) - \beta \nabla_\theta H(\theta),
+\end{align}
+where $\beta$ is hyperparameter to balance two terms, which is usually
+called \textit{entropy beta}.
+
+\subsection{Advantage Actor-Critic (A2C)}\label{subsubsec:a2c}
+
+The Actor-Critic method combines the policy-based and value-based approaches.
+In this method, two function approximations are learned: policy function
+$\pi_{\theta}(a|s)$, which controls what action the agent selects at state $s$,
+and value function $v_{\theta}(s)$, which estimates how profitable the state
+$s$ is.
+
+The modification of Actor-Critic method, which uses advantage, is called
+Advantage Actor-Critic (A2C) and is used for more stable convergence in
+comparison with only policy-based methods, like REINFORCE. The advantage is
+calculated in the following way:
+\begin{align*}
+  A(s_t, a_t) = q(s_t,a_t)- v(s_t),
+\end{align*}
+where $ q(s_t,a_t)$ --- action value function.
+
+\begin{align}\label{eq:q_estimation}
+  q(s,a) \approx R_N = \sum_{t=1}^N \gamma^{N-t}_\text{decay} r_t.
+\end{align}
+where $\gamma_\text{decay}$ --- decay factor, which is between 0 and 1,
+and $r_t$ is the reward at state $s_t$ and total episode return $R_N$.
+
+Advantage $A(s_t, a_t)$ indicates the extra reward the agent can get if it
+selects the action $a_t$ at state $s_t$ compared to the mean reward, $v(s_t)$,
+it gets at state $s_t$. Using the \cref{eq:q_estimation}, the formula for
+advantage becomes the following:
+\begin{align}
+  \label{eq:a2c_advantage}
+  A(s_t, a_t) = R_N - v(s_t).
+\end{align}
+
+\begin{figure}[hbt]
+  \centering
+  \includegraphics[width=\textwidth,keepaspectratio]{pictures/a2c.jpg}
+  \caption[Advantage Actor-Critic (A2C) architecture with shared body]
+  {Advantage Actor-Critic (A2C) architecture with shared body.
+  }\label{fig:a2c_arch}
+\end{figure}
+
+\paragraph{Policy}
+The policy calculation is similar to REINFORCE case (\cref{eq:rnf_policy}). The
+stochastic policy of selection action $a_t$ given state $s_t$ obtained from
+policy head of neural network depicted on \cref{fig:a2c_arch}.
+
+During training stage, the corresponding probabilities $\pi_{\theta}(a_t | s_t)$
+are used for action sampling. During evaluation and
+testing stages, the optimal action $a_t^\ast$ is chosen in the same way as in
+\cref{eq:rnf_optimal}.
+
+\paragraph{Objective function}
+At the beginning, it is necessary to define $v_\theta(s_t)$. The value function
+of the given state $s_t$ obtained from value head of neural network depicted on \cref{fig:a2c_arch}.
+
+The objective function itself in case of A2C consists of three parts: policy
+gradient part, entropy part and value loss part.
+
+First part is policy gradient, which is quite similar to the one give in
+\cref{eq:rnf_pg}:
+\begin{align*}
+  \nabla_{\theta} J(\theta) =
+  \sum_{t=1}^N A(s_t, a_t)\nabla_{\theta}  \log \pi_{\theta}(a_t | s_t).
+\end{align*}
+The only difference is that, instead of $q_\theta(s_t, a_t)$ used
+\cref{eq:rnf_pg},
+here $A(s_t, a_t)$ is used. Using the \cref{eq:a2c_advantage},
+the policy gradient formula becomes as following:
+\begin{align}
+  \label{eq:a2c_pg}
+  \nabla_{\theta} J(\theta) =
+  \sum_{t=1}^N (R_N - v_\theta(s_t)) \nabla_{\theta} \log \pi_{\theta}(a_t | s_t).
+\end{align}
+
+Second part of objective function is entropy part, $H(\theta)$, which is
+identical to one proposed for REINFORCE (\cref{eq:entropy}).
+
+Third and final part of objective function is value loss part, which estimates
+how accurate DNet approximates value. The value loss is defined as
+\begin{align}
+  \label{eq:a2c_vl}
+  L_v(\theta)
+  =\sum^N_{t=1} {(q_{\theta}(s_t, a_t) - v_{\theta}(s_t))}^2
+  = \sum^N_{t=1} {(R_N- v_\theta(s_t))}^2.
+\end{align}
+
+The objective function is defined as the following combination of
+\cref{eq:a2c_pg,eq:entropy,eq:a2c_vl}:
+\begin{align}
+  \label{eq:a2c_objective}
+  Z(\theta) = \nabla_\theta J(\theta) +
+  \nabla_\theta L_v(\theta) - \beta \nabla_\theta H(\theta),
+\end{align}
+where $\beta$ has the same meaning as in \cref{eq:rnf_objective}.
 
 
-\subsection{Reinforce}
-\begin{algorithm}
-\caption{Policy Gradient Training Loop}\label{algo:train_loop}
-\begin{algorithmic}[0]
-  \Require{$\text{pgn\_net}:$ nn.Module, $\text{pgn\_optimizer}:$ optim.Optimizer, $\text{agent}:$ Agent, $\text{buffer}:$ TrajectoryBuffer, \\ 
-           \hspace{1em}$\text{epochs}, \text{episodes}:$ int, $\text{mean\_baseline}:$ bool, $\text{entropy\_beta}:$ float}
-  \State{$\text{arr\_rewards} \gets []$}
-  \State{$\text{pgn\_net.train()}$}
-  \For{$i \gets 1$ \textbf{to} $\text{epochs}$}
-    \State{$\text{buffer.clean()}$}
-    \State{$\text{state} \gets \text{env.reset()}$}
-    \State{$\text{done\_episodes} \gets 0$}
-    \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf},\,\text{reg\_exp},\,\text{train\_rewards} \gets [],[],[],[]$}
-    \While{$\text{done\_episodes} < \text{episodes}$}
-      \State{$\text{state\_tensor} \gets \text{Tensor}(\text{state})$}
-      \State{$\text{action\_logits} \gets \text{pgn\_net}(\text{state\_tensor})$}
-      \State{$t \gets 1 / \sqrt{i}$}
-      \State{$\text{action} \gets \text{agent.choose\_action}(\text{action\_logits} / t)$}
-      \State{$\text{next\_state},\,\text{reward},\,\text{done} \gets \text{env.step}(\text{action})$}
-      \State{$\text{reg\_exp.append}(\text{env.idx\_to\_action}(\text{action}))$}
-      \State{$\text{ep\_states\_buf.append}(\text{state});\quad \text{ep\_rew\_act\_buf.append}([\text{reward},\text{action}])$}
-      \State{$\text{state} \gets \text{next\_state}$}
-      \If{$\text{done}$}
-        \State{$\text{buffer.store}(\text{array}(\text{ep\_states\_buf}),\,\text{array}(\text{ep\_rew\_act\_buf}))$}
-        \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf} \gets [],[]$}
-        \State{$\text{train\_rewards.append}(\text{reward});\quad \text{arr\_rewards.append}(\text{train\_rewards})$}
-        \State{$\text{done\_episodes} \gets \text{done\_episodes} + 1$}
-      \EndIf
-    \EndWhile
-    \State{$\text{losses} \gets []$}
-    \ForAll{batch in $\text{buffer.get\_batches}(\text{mean\_baseline})$}
-      \State{$\text{pgn\_optimizer.zero\_grad}()$}
-      \State{$\text{state\_batch},\,\text{action\_batch},\,\text{reward\_batch} \gets \text{batch}$}
-      \State{$\text{logits\_v} \gets \text{pgn\_net}(\text{state\_batch})$}
-      \State{$\text{log\_prob\_v} \gets \text{LogSoftmax}(\text{logits\_v})$}
-      \State{$\text{log\_prob\_actions\_v} \gets \text{reward\_batch} \;\times\; \text{log\_prob\_v}[\dots,\;\text{action\_batch}]$}
-      \State{$\text{loss\_policy\_v} \gets -\,\mathrm{mean}(\text{log\_prob\_actions\_v})$}
-      \State{$\text{prob\_v} \gets \text{Softmax}(\text{logits\_v})$}
-      \State{$\text{entropy\_v} \gets -\,\mathrm{mean}\bigl(\sum(\text{prob\_v}\,\cdot\,\text{log\_prob\_v})\bigr)$}
-      \State{$\text{entropy\_loss\_v} \gets \text{entropy\_beta}\,\times\,\text{entropy\_v}$}
-      \State{$\text{loss\_v} \gets \text{loss\_policy\_v} - \text{entropy\_loss\_v}$}
-      \State{$\text{loss\_v.backward}();\quad \text{pgn\_optimizer.step}()$}
-      \State{$\text{losses.append}(\text{loss\_v})$}
-    \EndFor
-    \State{\textbf{print} epoch statistics}
-  \EndFor
-  \State\Return{$\text{pgn\_net}$}
-\end{algorithmic}
-\end{algorithm}
+\subsection{Deep Q-Network (DQN)}\label{subsubsec:dqn}
+
+The Deep Q-Network (DQN) approximates a state-value function $Q(s, a)$ for each
+possible action and state, using the experience replay buffer. Therefore, the
+DQN policy, which is build based on the state-value function, is implicit and
+deterministic.
+
+Q-Network is usually optimized towards target network with frozen weights,
+which is denoted as $\hat{Q}(s, a)$. In its turn, the target network is
+periodically updated with the latest Q-Network weights every $k_\text{sync}$
+episodes, where $k_\text{sync}$ is a hyperparameter. The target network is
+introduced to stabilize training.
+
+\paragraph{Policy}
+To perform agent exploration, the $\epsilon$-greedy strategy is used.
+$\epsilon(i)$ is a function $\mathbb{R}^d \rightarrow (0, 1)$, which maps the
+index of current epoch to float value between 0 and 1. On each step, the agent
+with the probability of $\epsilon$ selects random action. Otherwise, the agent
+selects action which maximizes $Q(s, a)$. This can be formalized as follows:
+\begin{align}
+  \label{eq:dqn_policy}
+  \pi_{\theta}(s_t) =
+  \begin{cases}
+    a \sim \{a_m\}                  & \text{ with probability } \epsilon,     \\
+    \text{argmax}_a Q_\theta(s_t,a) & \text{ with probability } 1 - \epsilon.
+  \end{cases}
+\end{align}
+where $\theta$
+denotes the parameters of DNet and
+$\{a_m\}$ --- actions space,
+which is in case of this research is \{\textit{Retain}, \textit{Delete}\}.
+
+During training stage, the actions are sampled according to the
+\cref{eq:dqn_policy}. During evaluation and testing stages, the optimal action
+$a_t^\ast$ is chosen as $a_t^\ast =\text{argmax}_a Q_\theta(s_t,a)$.
+
+\paragraph{Objective function}
+In case of DQN, the objective function for the episode consists only form one
+part --- state-value loss $L_Q(\theta) = \sum_{t=1}^N L_{Q_t}(\theta)$, and
+$L_{Q_t}(\theta)$ is defined as following:
+\begin{align*}
+  % \label{eq:dqn_objective}
+  L_{Q_t}(\theta) =
+  \begin{cases}
+    {(Q_\theta(s_t,a) - R_N)}^2,                                         & \text{ if the episode has ended} \\
+    {(Q_\theta(s_t,a) - \max_{a'}\hat{Q}_{\hat{\theta}}(s_{t+1},a'))}^2, & \text{ otherwise}.
+  \end{cases}
+\end{align*}
+Note that for non-terminal states the target network
+$\hat{Q}(s,a)$ is used to predict value of the next state $s_{t+1}$.
+Also recall that every $k_\text{sync}$ episodes $\hat{\theta}$ is set
+to $\theta$.
+
+Therefore, the objective function looks like the following:
+\begin{align}
+  \label{eq:dqn_objective}
+  Z(\theta) = \nabla_\theta L_Q(\theta).
+\end{align}
+
+
+
+
 
 \section{Experiments}
-We decided to check our models on 3 different experiments:
-\begin{itemize}
-  \item Digits retrieval
-  \item Retrieval of words, that consists of certain characters
-  \item Email addressed retrieval
-\end{itemize}
+We decided to check our models on 3 different experiments.
+
+\subsection{Single number retrieval}
+The task is to retrieve the number from the string.
+
+\paragraph{Dataset}
+The dataset contains 500 strings of lengths from 3 to 10. Each string includes one number (maximum 3 digits).
+
+\paragraph{Target Regexp}
+We want our RL agent to simulate the application of \codeword{\d} regular expression.
+
+\subsection{Word from subset of symbols retrieval}
+The task is to retrieve from the string a word which consists of a certain subset of symbols.
+
+\paragraph{Dataset}
+The dataset contains 500 strings of lengths from 6 to 20. Each string includes one word that consists of the letters `c', `a' and `t'.
+
+\paragraph{Target Regexp}
+We want our RL agent to simulate the application of \codeword{[cat]+} regular expression.
+
+\subsection{Simple email retrieval}
+The task is to retrieve an email from the string.
+
+\paragraph{Dataset}
+The dataset contains 500 strings of lengths from 11 to 35. Each string contains one email, which consists of 5 parts: from 4 to 8 letters, \codeword{@} sign, from 3 to 4 letters, dot, from 2 to 5 symbols.
+
+\paragraph{Target Regexp}
+We want our RL agent to simulate the application of \codeword{\w+@\w+\.\w+} regular expression.
 
 \section{Results and Discussion}
-\dots
+In this work, we managed to implement an agent who learns how to form a regular expression in reverse Polish notation. Learning on our dataset, the agent successfully learned how to get numbers and words consisting of certain letters. However, the agent cannot handle the formation of more complex expressions, for example, to get mail.
+
+We used the DQN algorithm, but we didn't get good results on it, because this algorithm is a value-based algorithm. Because of this, the problem of Exploration-Exploitation Trade-off arises in the algorithm, the problem of choosing $\epsilon$ is quite non-trivial. Because of this, the algorithm showed very poor convergence. Therefore, we decided to abandon it and switch to algorithms that update the policy directly.
+
+On these graphs, you can see the results of the work for each algorithm proposed by us.
+
+Graphs 1--2 show the results of learning algorithms for extracting numbers from a string.
+
+Graphs 3--4 show the result of learning algorithms for extracting words consisting of certain letters.
+
+Graphs 5--6 show the results for forming a regular expression to extract the postal address.
+
+It can be seen from the graphs that the Reinforce algorithm is \ldots, while the Actor is Critical \ldots.
+
+Our results can be improved by selecting better parameters for the algorithms, and we can also try other policy-based algorithms.
+
+
 
 \section{Conclusion}
-\dots
 
-\begin{figure}[H]
-  \centering
-    \includegraphics[width=0.5\textwidth]{./pictures/pipeline.png}
-    \caption[our pipeline]{our pipeline}\label{fig:pipeline}
-\end{figure}
+In this project our team successfully defined RL problem for regexp generation, implemented environment and tested several approaches. While some of them showed not the best performance, we proved, that such task might be solved via RL.
 
-\begin{figure}[H]
-  \centering
-    \includegraphics[width=0.5\textwidth]{./pictures/rin.jpg}
-    \caption[zhopa]{zhopa}\label{fig:zhopa}
-\end{figure}
+% \begin{figure}[H]
+%   \centering
+%     \includegraphics[width=0.5\textwidth]{./pictures/pipeline.png}
+%     \caption[our pipeline]{our pipeline}\label{fig:pipeline}
+% \end{figure}
 
-
-\section{Citation examples}
-\cite{Zhong2018}~\cite{Bartoli2016}~\cite{Bartoli2018}~\cite{Tariq2024}
-
+% \begin{figure}[H]
+%   \centering
+%     \includegraphics[width=0.5\textwidth]{./pictures/rin.jpg}
+%     \caption[zhopa]{zhopa}\label{fig:zhopa}
+% \end{figure}
 
 \bibliographystyle{plain}
 \bibliography{references}
 
+% \appendix
+% % \section*{Appendix}
+
+
+% \subsection*{Reinforce algorithm}
+% \begin{algorithm}
+%   \caption{Policy Gradient Training Loop}\label{algo:train_loop}
+%   \begin{algorithmic}[0]
+%     \Require{$\text{pgn\_net}:$ nn.Module, $\text{pgn\_optimizer}:$ optim.Optimizer, $\text{agent}:$ Agent, $\text{buffer}:$ TrajectoryBuffer, \\
+%       \hspace{1em}$\text{epochs}, \text{episodes}:$ int, $\text{mean\_baseline}:$ bool, $\text{entropy\_beta}:$ float}
+%     \State{$\text{arr\_rewards} \gets []$}
+%     \State{$\text{pgn\_net.train()}$}
+%     \For{$i \gets 1$ \textbf{to} $\text{epochs}$}
+%     \State{$\text{buffer.clean()}$}
+%     \State{$\text{state} \gets \text{env.reset()}$}
+%     \State{$\text{done\_episodes} \gets 0$}
+%     \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf},\,\text{reg\_exp},\,\text{train\_rewards} \gets [],[],[],[]$}
+%     \While{$\text{done\_episodes} < \text{episodes}$}
+%     \State{$\text{state\_tensor} \gets \text{Tensor}(\text{state})$}
+%     \State{$\text{action\_logits} \gets \text{pgn\_net}(\text{state\_tensor})$}
+%     \State{$t \gets 1 / \sqrt{i}$}
+%     \State{$\text{action} \gets \text{agent.choose\_action}(\text{action\_logits} / t)$}
+%     \State{$\text{next\_state},\,\text{reward},\,\text{done} \gets \text{env.step}(\text{action})$}
+%     \State{$\text{reg\_exp.append}(\text{env.idx\_to\_action}(\text{action}))$}
+%     \State{$\text{ep\_states\_buf.append}(\text{state});\quad \text{ep\_rew\_act\_buf.append}([\text{reward},\text{action}])$}
+%     \State{$\text{state} \gets \text{next\_state}$}
+%     \If{$\text{done}$}
+%     \State{$\text{buffer.store}(\text{array}(\text{ep\_states\_buf}),\,\text{array}(\text{ep\_rew\_act\_buf}))$}
+%     \State{$\text{ep\_states\_buf},\,\text{ep\_rew\_act\_buf} \gets [],[]$}
+%     \State{$\text{train\_rewards.append}(\text{reward});\quad \text{arr\_rewards.append}(\text{train\_rewards})$}
+%     \State{$\text{done\_episodes} \gets \text{done\_episodes} + 1$}
+%     \EndIf
+%     \EndWhile
+%     \State{$\text{losses} \gets []$}
+%     \ForAll{batch in $\text{buffer.get\_batches}(\text{mean\_baseline})$}
+%     \State{$\text{pgn\_optimizer.zero\_grad}()$}
+%     \State{$\text{state\_batch},\,\text{action\_batch},\,\text{reward\_batch} \gets \text{batch}$}
+%     \State{$\text{logits\_v} \gets \text{pgn\_net}(\text{state\_batch})$}
+%     \State{$\text{log\_prob\_v} \gets \text{LogSoftmax}(\text{logits\_v})$}
+%     \State{$\text{log\_prob\_actions\_v} \gets \text{reward\_batch} \;\times\; \text{log\_prob\_v}[\dots,\;\text{action\_batch}]$}
+%     \State{$\text{loss\_policy\_v} \gets -\,\mathrm{mean}(\text{log\_prob\_actions\_v})$}
+%     \State{$\text{prob\_v} \gets \text{Softmax}(\text{logits\_v})$}
+%     \State{$\text{entropy\_v} \gets -\,\mathrm{mean}\bigl(\sum(\text{prob\_v}\,\cdot\,\text{log\_prob\_v})\bigr)$}
+%     \State{$\text{entropy\_loss\_v} \gets \text{entropy\_beta}\,\times\,\text{entropy\_v}$}
+%     \State{$\text{loss\_v} \gets \text{loss\_policy\_v} - \text{entropy\_loss\_v}$}
+%     \State{$\text{loss\_v.backward}();\quad \text{pgn\_optimizer.step}()$}
+%     \State{$\text{losses.append}(\text{loss\_v})$}
+%     \EndFor
+%     \State{\textbf{print} epoch statistics}
+%     \EndFor
+%     \State\Return{$\text{arr\_rewards}$}
+%   \end{algorithmic}
+% \end{algorithm}
+
+% \subsection*{Actor-Critic algorithm}
+
+% \begin{algorithm}[H]
+
+%   \caption{Actor-Critic}\label{algo:a2c}
+%   \begin{algorithmic}[0]
+%     \Require{empty state of size $n$, environment $env$}
+
+%     \State{$done \gets False $}
+%     \State{$actions \gets [] $}
+%     \State{$states \gets [] $}
+%     \State{$rewards \gets [] $}
+%     \State{$state \gets env.reset() $}
+%     \While{$!done$}
+%     \State{$logits \gets net(state)[0]$}
+%     \State{$action \gets choose\_action(logits)$}
+%     \State{$new\_state, reward, done \gets env.step(action)$}
+%     \State{$actions, states, rewards \gets action, state, reward$}
+%     \EndWhile{}
+%     \State{$cumulative\_rewards \gets accomulate(rewards)$}
+%     \State{$logits, values \gets net(states)$}
+%     \State{$loss\_val \gets MSE(values, cumulative\_rewards)$}
+%     \State{$log\_probs \gets LogSoftmax(logits)$}
+%     \State{$adv \gets cumulative\_rewards - values$}
+%     \State{$log\_probs\_actions \gets adv \cdot log\_probs$}
+%     \State{$loss\_policy \gets -mean(log\_probs\_actions)$}
+%     \State{$probs \gets Softmax(logits)$}
+%     \State{$entropy \gets mean(sum((probs \cdot log\_probs),dim=1))$}
+%     \State{$entropy_loss \gets \beta \cdot entropy$}
+%     \State{$loss\_policy.backward()$}
+%     \State{$loss\_val \gets entropy_loss + loss\_val$}
+%     \State{$loss\_val.backward()$}
+
+%     \State{\Return{$net$}}
+
+%   \end{algorithmic}
+% \end{algorithm}
 
 
 \end{document}
-
