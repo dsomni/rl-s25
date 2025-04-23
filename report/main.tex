@@ -444,10 +444,39 @@ Therefore, the objective function looks like the following:
 
 
 \section{Experiments}
-We decided to check our models on 3 different experiments.
+We decided to check our models on 3 different experiments. \codeword{\d+}
 
 \subsection{Single number retrieval}
 The task is to retrieve the number from the string.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/a2c_number.jpg}
+  \caption[A2C convergence on Single Number Retrieval problem]
+  {A2C convergence on Single Number Retrieval problem}\label{fig:a2c_num}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/reinforce_number.jpg}
+  \caption[REINFORCE convergence on Single Number Retrieval problem]
+  {REINFORCE convergence on Single Number Retrieval problem}\label{fig:reinforce_num}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{tabular}{l|l|l}
+    \toprule
+    \textbf{Agent} & \textbf{Achieved Regex} & \textbf{Total Reward} \\
+    \midrule
+    A2C            & \codeword{\d+}          & 49899.99              \\
+    REINFORCE      & \codeword{\d+}          & 49899.99              \\
+    Random agent   & \codeword{v1\+.r}       & -66791.97             \\
+    \bottomrule
+  \end{tabular}
+  \caption{Final results for Single Number Retrieval problem. \textit{Total Reward} is the sum of rewards on all dataset samples}\label{tab:res_num}
+\end{figure}
+
 
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 3 to 10. Each string includes one number (maximum 3 digits).
@@ -458,14 +487,72 @@ We want our RL agent to simulate the application of \codeword{\d} regular expres
 \subsection{Word from subset of symbols retrieval}
 The task is to retrieve from the string a word which consists of a certain subset of symbols.
 
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/a2c_words.jpg}
+  \caption[A2C convergence on Single Number Retrieval problem]
+  {A2C convergence on Word Retrieval problem}\label{fig:a2c_word}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/reinforce_words.jpg}
+  \caption[REINFORCE convergence on Word Retrieval problem]
+  {REINFORCE convergence on Word Retrieval problem}\label{fig:reinforce_word}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{tabular}{l|l|l}
+    \toprule
+    \textbf{Agent} & \textbf{Achieved Regex} & \textbf{Total Reward} \\
+    \midrule
+    A2C            & \codeword{[atc]+}       & 49749.99              \\
+    REINFORCE      & \codeword{[tca]+}       & 49749.99              \\
+    Random agent   & \codeword{7CbQr}        & -65763.80             \\
+    \bottomrule
+  \end{tabular}
+  \caption{Final results for Word Retrieval problem. \textit{Total Reward} is the sum of rewards on all dataset samples}\label{tab:res_word}
+\end{figure}
+
+
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 6 to 20. Each string includes one word that consists of the letters `c', `a' and `t'.
 
 \paragraph{Target Regexp}
-We want our RL agent to simulate the application of \codeword{[cat]+} regular expression.
+We want our RL agent to simulate the application of regular expression.
 
 \subsection{Simple email retrieval}
-The task is to retrieve an email from the string.
+The task is to retrieve an email from the string. \codeword{[cat]+}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/a2c_email.jpg}
+  \caption[A2C convergence on Email Retrieval problem]
+  {A2C convergence on Word Retrieval problem}\label{fig:a2c_email}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.7\textwidth]{./pictures/reinforce_email.jpg}
+  \caption[REINFORCE convergence on Email Retrieval problem]
+  {REINFORCE convergence on Word Retrieval problem}\label{fig:reinforce_email}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{tabular}{l|l|l}
+    \toprule
+    \textbf{Agent} & \textbf{Achieved Regex} & \textbf{Total Reward} \\
+    \midrule
+    A2C            & \codeword{\w+@.*}       & -9430.51              \\
+    REINFORCE      & \codeword{@.*}          & -40971.12             \\
+    Random agent   & \codeword{Q:CnO<}       & -76470.91             \\
+    \bottomrule
+  \end{tabular}
+  \caption{Final results for Email Retrieval problem. \textit{Total Reward} is the sum of rewards on all dataset samples}\label{tab:res_email}
+\end{figure}
 
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 11 to 35. Each string contains one email, which consists of 5 parts: from 4 to 8 letters, \codeword{@} sign, from 3 to 4 letters, dot, from 2 to 5 symbols.
@@ -503,7 +590,7 @@ In this project our team successfully defined RL problem for regexp generation, 
 % \end{figure}
 
 % \begin{figure}[H]
-%   \centering
+%   \centering3\codetex{}
 %     \includegraphics[width=0.5\textwidth]{./pictures/rin.jpg}
 %     \caption[zhopa]{zhopa}\label{fig:zhopa}
 % \end{figure}
