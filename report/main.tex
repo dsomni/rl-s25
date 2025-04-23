@@ -23,12 +23,21 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=blue,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
 \renewcommand{\algorithmicrequire}{\textbf{Input:}}
 \renewcommand{\algorithmicensure}{\textbf{Initialize:}}
 
 \NiceMatrixOptions{cell-space-top-limit=5pt,cell-space-bottom-limit=5pt,columns-width=20pt}
 
-\crefname{lstlisting}{listing}{listings}
+\Crefname{lstlisting}{listing}{listings}
 \Crefname{lstlisting}{Listing}{Listings}
 
 
@@ -93,22 +102,22 @@ via Reinforcement Learning}
 
 \section{Introduction}
 
-Nowadays big-tech companies increasingly prefer data-driven development, which requires careful extraction of
+Nowadays Big-Tech companies increasingly prefer data-driven development, which requires careful extraction of
 information, including from unstructured or almost unstructured text. This task is considered as extremely tough,
 but in many real-world scenarios even unstructured text information have underlying syntactic pattern that can be
 characterized by a regular expressions, due to their adaptability and expressiveness.
 However, even for experienced programmers, writing RegEx by hand is a boring, time-consuming, and error-prone
 process. Moreover, despite widespread use of regular expression, there are not so many researches and literature on
-the automatic RegEx generation. That is why we chose an example-based RegEx generation as a topic of the project of
+the automatic RegEx generation. That is why we have chosen an example-based RegEx generation as a topic of the project of
 this course.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.5\textwidth]{./pictures/approach1.png}
-  \caption[NL2RE pipeline]{NL2RE pipeline}\label{fig:NL2RE}
+  \includegraphics[width=0.6\textwidth]{./pictures/approach1.png}
+  \caption{Natural Language to Regex (NL2RE) pipeline}\label{fig:NL2RE}
 \end{figure}
 
-One approach~\cite{Zhong2018, Tariq2024} uses LLMs to convert natural language prompts into regular expressions (NL2RE).
+One approach~\cite{Zhong2018, Tariq2024} uses LLMs to convert natural language prompts into regular expressions \Cref{fig:NL2RE}.
 This method offers flexibility, allowing the model to generate a wide variety of RegExes.
 However, it requires significant computational resources and careful architecture design.
 This method is not ideal for generating RegExes that are specifically tailored to a particular domain or task.
@@ -126,89 +135,126 @@ This method formulates the regular expression generation process as a Markov dec
 with fully-observable deterministic episodic environment.
 
 Each action corresponds to a regular expression syntax unit, state space would be a set of all possible sequences
-of syntax units of fixed length. For reward function various information retrieval metrics can be used as indicators
-of how good the generated regular expression is.
+of syntax units of fixed length.
 
 \subsection{Reverse Polish Notation}
 Due to the fact that regular expressions have operations with different precedence and number of arguments,
 we decided to use the Reverse Polish Notation (RPN) for the construction of regular expressions.
 
-In our RPN implementation we have 104 different actions:
+In our Regex RPN implementation we have 103 different tokens:
 \begin{itemize}
-  \item 93 tokens (letters, digits, quantifiers, finish token, etc.),
+  \item 92 simple tokens (letters, digits, quantifiers, and symbols, etc.),
   \item 2 binary operations (\codeword{concat} and \codeword{|}),
   \item 6 unary operations (\codeword{*}, \codeword{+}, \codeword{?}, \codeword{*?}, \codeword{+?}, \codeword{??}),
   \item 3 many to one operations (\codeword{[]}, \codeword{^[]}, \codeword{concat_all}).
 \end{itemize}
 
+Let us demonstrate, how RPN representation is converted to the infix (regular) notation. Suppose the following list of tokens as input to RPN: [\codeword{1}, \codeword{a}, \codeword{b}, \codeword{[]}, \codeword{*}]
+By iterating one after another, the following (infix) expressions would be generated:
+
+\begin{enumerate}
+  \item \codeword{1}
+  \item \codeword{a1}
+  \item \codeword{ba1}
+  \item \codeword{[ba1]}
+  \item \codeword{[ba1]*}
+\end{enumerate}
+
+Another example with the RPN {[\codeword{\d}, \codeword{@}, \codeword{|}, \codeword{[]}, \codeword{+} ]}
+\begin{enumerate}
+  \item \codeword{\d}
+  \item \codeword{@\d}
+  \item \codeword{\d|@}
+  \item \codeword{[\d|@]}
+  \item \codeword{[\d|@]+}
+\end{enumerate}
+
+You can find more about RPN \href{https://en.wikipedia.org/wiki/Reverse_Polish_notation}{here}.
+
+
 \subsection{Dataset}
 
-For the stated problem our dataset would have the following form:
+We have decided to construct the dataset (given true regular expression) in the following form:
 \begin{itemize}
-  \item Example text
-  \item Nonempty list of indexes of symbols from example text, which we want to retrieve with achieved regexp
+  \item Text
+  \item Nonempty list of indexes (begin and end) of symbols from example text, which we want to retrieve with achieved regex
 \end{itemize}
 
 \section{Methodology}
-This section explains the basic parts of Reinforcement Learning.
+This section explains the underlying RL theory and solution design aspects.
 \subsection{Action Space}
-Action space for our RL agent consists of all possible actions for RPN.
+Action space for our RL agent consists of all possible RPN tokens together with \codeword{FIN} state (to finish regex construction earlier). In total we have 104 actions in our action space.
 
 \subsection{State Space}
-The state space consists of $n$ placeholders, where each placeholder can either contain an action
-from the action space or remain empty (denoted by a special empty token).
-To derive the current regular expression (state), we iterate over the non-empty tokens and apply the corresponding
-actions using Reverse Polish Notation (RPN).
+The state space $s$ consists of $n$ placeholders, where each placeholder can either contain an action
+from the action space or remain empty (denoted by a special empty token). After the agent
+takes an action at step $i$ (say we count from 0, so the first step is at $i=0$) $a_i$, the state
+is updated as $s_i \gets a_i$.
 
 \subsection{Reward}
-Reward function is a major part of RL pipeline. We come up with 2 approaches for reward calculation.
-Note, that we will calculate such rewards only by the end of the episode. Before that we will give 0 as reward.
+The reward in the considered task is delayed and is calculated in the final state (if the action is \codeword{FIN} or the maximum length of regex is achieved). The rewards on each non-terminate state is 0.
+We come up with two approaches for reward calculation.
 Let's start with common parts.
 
-First, we start with a text from which we want to extract specific information. To do this, we need to:
-Identify the indices of the characters we want to retrieve.
-Construct a `target bit mask' of length $n$ (where $n$ is the text length), where:
+Firstly, we start with a text from which we want to extract specific information. To do this, we need to construct a `target bit-mask' of length $n$ (where $n$ is the text length), where:
 \begin{itemize}
-  \item 1 marks positions to be included.
-  \item 0 marks positions to be excluded.
+  \item 1 marks positions to be included
+  \item 0 marks positions to be excluded
 \end{itemize}
 
-Then, we get the current regular expression from RPN and apply it to the text, retrieving indices of found symbol.
-After that, we construct the `current bit mask' in the same way as `target bit mask'
+Then, we create the `found' regular expression from the terminate state form RPN and apply it to the text, retrieving indices of found symbol.
+After that, we construct the `current bit-mask' in the same way as `target bit-mask'.
+
 
 \subsubsection{Xor approach}
-First idea of the reward is the following:
-
+First idea of the reward was the following:
 \begin{equation}
-  R = \alpha \cdot \sum(A \oplus B) + \beta \cdot |C - D| + \gamma \cdot E
+  R = a \cdot \sum(A \oplus B) + b \cdot |C - D| + c \cdot E
 \end{equation}
 where:
 \begin{itemize}
-  \item A --- `target bit-mask'
-  \item B --- `current bit-mask'
-  \item C --- number of target words
-  \item D --- number of words, retrieved with regexp
-  \item E --- token length of regexp
+  \item $A$ --- `target bit-mask'
+  \item $B$ --- `current bit-mask'
+  \item $C$ --- number of target words
+  \item $D$ --- number of words, retrieved with regex
+  \item $E$ --- token length of regex
 \end{itemize}
 
+Our final parameters for the environment that were the most successful are as follows
+\begin{itemize}
+  \item Index mismatch $a = -100$
+  \item Mismatch in words $b = -10000$
+  \item Penalty for length $c = -1$
+\end{itemize}
 \subsubsection{Metrics approach}
 Second idea of the reward is based on the fact, that we can calculate accuracy and F1 on bit-masks.
 Thus reward function would be the following:
 \begin{equation}
-  R =\alpha \cdot F1 + \beta \cdot A + \delta \cdot |C - D| + \omega \cdot E\
+  R =a \cdot (\text{F1} -1) + b \cdot (A-1) + c \cdot \sum(A \oplus B) + d \cdot |C - D| + e \cdot E\
 \end{equation}
 
 where:
 \begin{itemize}
   \item F1 --- F1 score on bit masks
-  \item A --- Accuracy on bit masks
-  \item C --- number of target words
-  \item D --- number of words, retrieved with regexp
-  \item E --- token length of regexp
+  \item $A$ --- Accuracy on bit masks
+  \item $C$ --- number of target words
+  \item $D$ --- number of words, retrieved with regex
+  \item $E$ --- token length of regex
 \end{itemize}
 
-\section{RL approaches}
-We decided to check 3 RL approaches: Advantage Actor-Critic (A2C), REINFORCE and Deep Q-Network (DQN).
+Our final parameters for the environment that were the most successful are as follows
+\begin{itemize}
+  \item The weight of the F1 metric $a = 100$
+  \item The weight of the Accuracy metric $b = 100$
+  \item Index mismatch $c = 100$
+  \item Mismatch in words $d = -1$
+  \item Penalty for length $e = -0.1$
+
+\end{itemize}
+
+
+\section{Reinforcement Learning algorithms}
+We decided to check three RL algorithms: Advantage Actor-Critic (A2C), REINFORCE and Deep Q-Network (DQN).
 
 \subsection{REINFORCE}
 REINFORCE is a version of Monte-Carlo Policy Gradient algorithm proposed by
@@ -228,7 +274,7 @@ given state $s_t$ obtained from policy:
 where $\theta$ denotes the parameters of policy neural network.
 
 During training stage, the corresponding probabilities from
-\cref{eq:rnf_policy} are used for action sampling. During evaluation and
+\Cref{eq:rnf_policy} are used for action sampling. During evaluation and
 testing stages, the optimal action $a_t^\ast$ is chosen in the following way:
 \begin{align}
   \label{eq:rnf_optimal}
@@ -247,11 +293,11 @@ is defined as
   s_t, a_t)R_N.
 \end{multline}
 Here for the simplicity it is assumed,
-that $N$ --- total length of both target and candidate texts.
+that $N$ --- total length of episode.
 By the solution architecture design, the state $s_{t+1}$ is completely
 determined by state $s_t$ and action $a_t$, the probabilities
 $p(s_1)$ and $p(s_{t+1}|s_t, a_t)$ are both equal to 1. Therefore,
-the \cref{eq:rnf_expreward} can be simplified to
+the \Cref{eq:rnf_expreward} can be simplified to
 \begin{align}
   J(\theta) = \sum_{s_1 a_1 \dots s_N a_N}\prod_t \pi_{\theta}(a_t | s_t)R_N.
 \end{align}
@@ -277,7 +323,7 @@ subtracting the entropy from the objective function pushes the policy to be unif
 what means punishing the agent to be too sure about what action to take.
 
 Finally, the objective function for the policy update combines
-\cref{eq:rnf_pg,eq:entropy}, and is defined as
+\Cref{eq:rnf_pg,eq:entropy}, and is defined as
 \begin{align}
   \label{eq:rnf_objective}
   Z(\theta) = \nabla_\theta J(\theta) - \beta \nabla_\theta H(\theta),
@@ -310,7 +356,7 @@ and $r_t$ is the reward at state $s_t$ and total episode return $R_N$.
 
 Advantage $A(s_t, a_t)$ indicates the extra reward the agent can get if it
 selects the action $a_t$ at state $s_t$ compared to the mean reward, $v(s_t)$,
-it gets at state $s_t$. Using the \cref{eq:q_estimation}, the formula for
+it gets at state $s_t$. Using the \Cref{eq:q_estimation}, the formula for
 advantage becomes the following:
 \begin{align}
   \label{eq:a2c_advantage}
@@ -326,31 +372,31 @@ advantage becomes the following:
 \end{figure}
 
 \paragraph{Policy}
-The policy calculation is similar to REINFORCE case (\cref{eq:rnf_policy}). The
+The policy calculation is similar to REINFORCE case (\Cref{eq:rnf_policy}). The
 stochastic policy of selection action $a_t$ given state $s_t$ obtained from
-policy head of neural network depicted on \cref{fig:a2c_arch}.
+policy head of neural network depicted on \Cref{fig:a2c_arch}.
 
 During training stage, the corresponding probabilities $\pi_{\theta}(a_t | s_t)$
 are used for action sampling. During evaluation and
 testing stages, the optimal action $a_t^\ast$ is chosen in the same way as in
-\cref{eq:rnf_optimal}.
+\Cref{eq:rnf_optimal}.
 
 \paragraph{Objective function}
 At the beginning, it is necessary to define $v_\theta(s_t)$. The value function
-of the given state $s_t$ obtained from value head of neural network depicted on \cref{fig:a2c_arch}.
+of the given state $s_t$ obtained from value head of neural network depicted on \Cref{fig:a2c_arch}.
 
 The objective function itself in case of A2C consists of three parts: policy
 gradient part, entropy part and value loss part.
 
 First part is policy gradient, which is quite similar to the one give in
-\cref{eq:rnf_pg}:
+\Cref{eq:rnf_pg}:
 \begin{align*}
   \nabla_{\theta} J(\theta) =
   \sum_{t=1}^N A(s_t, a_t)\nabla_{\theta}  \log \pi_{\theta}(a_t | s_t).
 \end{align*}
 The only difference is that, instead of $q_\theta(s_t, a_t)$ used
-\cref{eq:rnf_pg},
-here $A(s_t, a_t)$ is used. Using the \cref{eq:a2c_advantage},
+\Cref{eq:rnf_pg},
+here $A(s_t, a_t)$ is used. Using the \Cref{eq:a2c_advantage},
 the policy gradient formula becomes as following:
 \begin{align}
   \label{eq:a2c_pg}
@@ -359,10 +405,10 @@ the policy gradient formula becomes as following:
 \end{align}
 
 Second part of objective function is entropy part, $H(\theta)$, which is
-identical to one proposed for REINFORCE (\cref{eq:entropy}).
+identical to one proposed for REINFORCE (\Cref{eq:entropy}).
 
 Third and final part of objective function is value loss part, which estimates
-how accurate DNet approximates value. The value loss is defined as
+how accurate net approximates value. The value loss is defined as
 \begin{align}
   \label{eq:a2c_vl}
   L_v(\theta)
@@ -371,13 +417,13 @@ how accurate DNet approximates value. The value loss is defined as
 \end{align}
 
 The objective function is defined as the following combination of
-\cref{eq:a2c_pg,eq:entropy,eq:a2c_vl}:
+\Cref{eq:a2c_pg,eq:entropy,eq:a2c_vl}:
 \begin{align}
   \label{eq:a2c_objective}
   Z(\theta) = \nabla_\theta J(\theta) +
   \nabla_\theta L_v(\theta) - \beta \nabla_\theta H(\theta),
 \end{align}
-where $\beta$ has the same meaning as in \cref{eq:rnf_objective}.
+where $\beta$ has the same meaning as in \Cref{eq:rnf_objective}.
 
 
 \subsection{Deep Q-Network (DQN)}\label{subsubsec:dqn}
@@ -403,17 +449,16 @@ selects action which maximizes $Q(s, a)$. This can be formalized as follows:
   \label{eq:dqn_policy}
   \pi_{\theta}(s_t) =
   \begin{cases}
-    a \sim \{a_m\}                  & \text{ with probability } \epsilon,     \\
-    \text{argmax}_a Q_\theta(s_t,a) & \text{ with probability } 1 - \epsilon.
+    a \sim \{a_m\}                          & \text{ with probability } \epsilon,     \\
+    \operatorname{argmax}_a Q_\theta(s_t,a) & \text{ with probability } 1 - \epsilon.
   \end{cases}
 \end{align}
 where $\theta$
-denotes the parameters of DNet and
-$\{a_m\}$ --- actions space,
-which is in case of this research is \{\textit{Retain}, \textit{Delete}\}.
+denotes the parameters of neural network and
+$\{a_m\}$ --- actions space.
 
 During training stage, the actions are sampled according to the
-\cref{eq:dqn_policy}. During evaluation and testing stages, the optimal action
+\Cref{eq:dqn_policy}. During evaluation and testing stages, the optimal action
 $a_t^\ast$ is chosen as $a_t^\ast =\text{argmax}_a Q_\theta(s_t,a)$.
 
 \paragraph{Objective function}
@@ -442,12 +487,21 @@ Therefore, the objective function looks like the following:
 
 
 
-
 \section{Experiments}
-We decided to check our models on 3 different experiments. \codeword{\d+}
+We have decided to check our models on three different experiments:
+extraction of single number (low complexity), extraction of word consisting of
+specified set of symbols (medium complexity) and extraction ef email (high complexity).
+Each experiment has corresponding dataset.
+
+Note that in experiments DQN approach is not presented as it demonstrates pure
+performance on toy tasks during development. The main reason is that DQN is value-based approach
+(while REINFORCE and A2C are policy-based) what means the exploration-exploitation
+trade-off should be explicitly defined. However, we fails to find the good $epsilon$-greedy
+strategy: either agent explored too much and failed to converge, or agent started exploiting too
+early and failed to explore all actions.  Therefore, we decided to abandon DQN and switch to algorithms that update the policy directly.
 
 \subsection{Single number retrieval}
-The task is to retrieve the number from the string.
+The task is to retrieve single number from the string of characters. Number is defined as one or more digit.
 
 \begin{figure}[H]
   \centering
@@ -481,11 +535,15 @@ The task is to retrieve the number from the string.
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 3 to 10. Each string includes one number (maximum 3 digits).
 
-\paragraph{Target Regexp}
+\paragraph{Target regex}
 We want our RL agent to simulate the application of \codeword{\d} regular expression.
 
+\paragraph{Results}
+\Cref{fig:a2c_num,fig:reinforce_num} show that both algorithms converged to the quite high positive rewards. \Cref{tab:res_num} demonstrates that obtained regular expressions are indeed correct.
+
 \subsection{Word from subset of symbols retrieval}
-The task is to retrieve from the string a word which consists of a certain subset of symbols.
+The task is to retrieve a word which consists of a certain subset of symbols from the string.
+Word is a string with one or more symbols.
 
 
 \begin{figure}[H]
@@ -520,11 +578,16 @@ The task is to retrieve from the string a word which consists of a certain subse
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 6 to 20. Each string includes one word that consists of the letters `c', `a' and `t'.
 
-\paragraph{Target Regexp}
-We want our RL agent to simulate the application of regular expression.
+\paragraph{Target regex}
+We want our RL agent to simulate the application of \codeword{[cat]+} regular expression.
+Note that actually every combination of letters `c', `a' and `t' can be used inside
+square brackets.
 
-\subsection{Simple email retrieval}
-The task is to retrieve an email from the string. \codeword{[cat]+}
+\paragraph{Results}
+\Cref{fig:a2c_word,fig:reinforce_word} show that both algorithms converged to the quite high positive rewards. \Cref{tab:res_word} demonstrates that obtained regular expressions are indeed correct.
+
+\subsection{Email retrieval}
+The task is to retrieve an email from the string. The main assumption is email can consist only from english letters (both lower and upper cases).
 
 \begin{figure}[H]
   \centering
@@ -557,31 +620,17 @@ The task is to retrieve an email from the string. \codeword{[cat]+}
 \paragraph{Dataset}
 The dataset contains 500 strings of lengths from 11 to 35. Each string contains one email, which consists of 5 parts: from 4 to 8 letters, \codeword{@} sign, from 3 to 4 letters, dot, from 2 to 5 symbols.
 
-\paragraph{Target Regexp}
+\paragraph{Target regex}
 We want our RL agent to simulate the application of \codeword{\w+@\w+\.\w+} regular expression.
 
+\paragraph{Results}
+\Cref{fig:a2c_email,fig:reinforce_email} show that both algorithms converged to some non-optimal
+regular expressions. However, \Cref{tab:res_email} demonstrates that obtained regular expressions are more than reasonable though are not fully correct.
+
+
 \section{Results and Discussion}
-In this work, we managed to implement an agent who learns how to form a regular expression in reverse Polish notation. Learning on our dataset, the agent successfully learned how to get numbers and words consisting of certain letters. However, the agent cannot handle the formation of more complex expressions, for example, to get mail.
 
-We used the DQN algorithm, but we didn't get good results on it, because this algorithm is a value-based algorithm. Because of this, the problem of Exploration-Exploitation Trade-off arises in the algorithm, the problem of choosing $\epsilon$ is quite non-trivial. Because of this, the algorithm showed very poor convergence. Therefore, we decided to abandon it and switch to algorithms that update the policy directly.
-
-On these graphs, you can see the results of the work for each algorithm proposed by us.
-
-Graphs 1--2 show the results of learning algorithms for extracting numbers from a string.
-
-Graphs 3--4 show the result of learning algorithms for extracting words consisting of certain letters.
-
-Graphs 5--6 show the results for forming a regular expression to extract the postal address.
-
-It can be seen from the graphs that the Reinforce algorithm is \ldots, while the Actor is Critical \ldots.
-
-Our results can be improved by selecting better parameters for the algorithms, and we can also try other policy-based algorithms.
-
-
-
-\section{Conclusion}
-
-In this project our team successfully defined RL problem for regexp generation, implemented environment and tested several approaches. While some of them showed not the best performance, we proved, that such task might be solved via RL.
+In this project our team successfully formulated regex generation as RL problem, implemented environment and tested several approaches Learning on our dataset, the some agents successfully learned how to get numbers and words consisting of certain letters. However, the agents cannot handle the formation of more complex expressions, for example, email extraction. While some of agents showed not the best performance, we proved, that such task can be indeed be solved via Reinforcement Learning.
 
 % \begin{figure}[H]
 %   \centering
